@@ -4,7 +4,7 @@ Tags: event,events,calendar,event calendar,events calendar
 Requires at least: 4.9
 Tested up to: 6.5
 Requires PHP: 7.0
-Stable tag: 3.3.0
+Stable tag: 3.3.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,9 @@ The Blocks is available in WordPress version 5.8 and above.
 5. Holidays setting
 
 == Changelog ==
+
+= 3.3.1 =
+* Hardened widget setting sanitization and numeric range validation.
 
 = 3.3.0 =
 * Forked from original XO Event Calendar (v3.2.10) by Xakuro
