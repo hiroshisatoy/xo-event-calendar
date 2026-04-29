@@ -236,13 +236,19 @@ jQuery(document).ready(function($) {
 	public function update( $new_instance, $old_instance ) {
 		$instance = $old_instance;
 
-		$instance['title']         = wp_strip_all_tags( $new_instance['title'] );
-		$instance['cats']          = isset( $new_instance['cats'] ) ? $new_instance['cats'] : array();
-		$instance['holidays']      = isset( $new_instance['holidays'] ) ? $new_instance['holidays'] : array();
-		$instance['prev']          = isset( $new_instance['prev'] ) ? $new_instance['prev'] : '-1';
-		$instance['next']          = isset( $new_instance['next'] ) ? $new_instance['next'] : '-1';
-		$instance['start_of_week'] = isset( $new_instance['start_of_week'] ) ? $new_instance['start_of_week'] : '0';
-		$instance['months']        = isset( $new_instance['months'] ) ? $new_instance['months'] : '1';
+		$instance['title']    = isset( $new_instance['title'] ) ? wp_strip_all_tags( $new_instance['title'] ) : '';
+		$instance['cats']     = isset( $new_instance['cats'] ) && is_array( $new_instance['cats'] ) ? array_values( array_unique( array_filter( array_map( 'sanitize_key', $new_instance['cats'] ) ) ) ) : array();
+		$instance['holidays'] = isset( $new_instance['holidays'] ) && is_array( $new_instance['holidays'] ) ? array_values( array_unique( array_filter( array_map( 'sanitize_key', $new_instance['holidays'] ) ) ) ) : array();
+
+		$prev = isset( $new_instance['prev'] ) ? intval( $new_instance['prev'] ) : -1;
+		$next = isset( $new_instance['next'] ) ? intval( $new_instance['next'] ) : -1;
+		$week = isset( $new_instance['start_of_week'] ) ? intval( $new_instance['start_of_week'] ) : 0;
+		$mon  = isset( $new_instance['months'] ) ? intval( $new_instance['months'] ) : 1;
+
+		$instance['prev']          = (string) min( 12, max( -1, $prev ) );
+		$instance['next']          = (string) min( 12, max( -1, $next ) );
+		$instance['start_of_week'] = (string) min( 6, max( -1, $week ) );
+		$instance['months']        = (string) min( 12, max( 1, $mon ) );
 
 		return $instance;
 	}

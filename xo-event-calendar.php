@@ -15,7 +15,7 @@
  * License:           GPL v2 or later
  * Requires at least: 4.9
  * Requires PHP:      7.0
- * Version:           3.3.0
+ * Version:           3.3.1
  * Text Domain:       xo-event-calendar
  * Domain Path:       /languages
  * 
@@ -28,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'XO_EVENT_CALENDAR_VERSION', '3.3.0' );
+define( 'XO_EVENT_CALENDAR_VERSION', '3.3.1' );
 
 if ( ! defined( 'XO_EVENT_CALENDAR_EVENT_POST_TYPE' ) ) {
 	define( 'XO_EVENT_CALENDAR_EVENT_POST_TYPE', 'xo_event' );
