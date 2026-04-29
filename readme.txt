@@ -3,8 +3,8 @@ Contributors: sato-jp
 Tags: event,events,calendar,event calendar,events calendar
 Requires at least: 4.9
 Tested up to: 6.5
-Requires PHP: 7.0
-Stable tag: 3.3.1
+Requires PHP: 7.4
+Stable tag: 3.3.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,15 @@ The Blocks is available in WordPress version 5.8 and above.
 5. Holidays setting
 
 == Changelog ==
+
+= 3.3.2 =
+* Fixed multisite uninstall using wrong post type / taxonomy variables.
+* Escaped event and holiday titles in calendar HTML; tightened caption date format handling.
+* Removed inline onclick from calendar navigation (data attribute + delegated handler); dropped button onclick from allowed KSES.
+* Capped public AJAX calendar parameters to reduce abuse; public requests still omit nonce by design.
+* save_post now verifies post type and edit_post capability before saving event meta.
+* Holiday settings submenu now defaults to manage_options; use filter `xo_event_calendar_holiday_setting_capability` to restore a looser capability (for example edit_pages).
+* Raised minimum PHP to 7.4.
 
 = 3.3.1 =
 * Hardened widget setting sanitization and numeric range validation.

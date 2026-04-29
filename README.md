@@ -43,11 +43,11 @@ npm start
 
 ## Release
 
-GitHub Actions でタグをプッシュすると、`@wordpress/scripts` の `plugin-zip` で作成した `xo-event-calendar.zip` を GitHub Release のアセットとして公開します（例: `v3.3.1`）。
+GitHub Actions でタグをプッシュすると、`@wordpress/scripts` の `plugin-zip` で作成した `xo-event-calendar.zip` を GitHub Release のアセットとして公開します（例: `v3.3.2`）。
 
 ```bash
-git tag v3.3.1
-git push origin v3.3.1
+git tag v3.3.2
+git push origin v3.3.2
 ```
 
 ローカルで ZIP を作る場合は `npm run build` のあと `npm run plugin-zip` を実行してください。

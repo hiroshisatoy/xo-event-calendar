@@ -61,7 +61,7 @@ if ( false !== $options && isset( $options['delete_data'] ) && $options['delete_
 			$site_ids = get_sites( array( 'fields' => 'ids' ) );
 			foreach ( $site_ids as $site_id ) {
 				switch_to_blog( $site_id );
-				xo_event_calendar_uninstall( $post_type, $taxonomy_type );
+				xo_event_calendar_uninstall( $_post_type, $_taxonomy_type );
 			}
 			restore_current_blog();
 		} else {

@@ -447,6 +447,16 @@ class XO_Event_Calendar_Admin {
 		if ( ! wp_verify_nonce( $_POST['xo_event_calendar_meta_box_nonce'], 'xo_event_calendar_meta_box_data' ) ) { // phpcs:ignore
 			return $post_id;
 		}
+		$post_id = (int) $post_id;
+		if ( $post_id <= 0 ) {
+			return;
+		}
+		if ( get_post_type( $post_id ) !== XO_Event_Calendar::get_post_type() ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
 		// 自動保存ルーチンかどうかチェック。そうだった場合はフォームを送信しない（何もしない）.
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return $post_id;
@@ -483,11 +493,13 @@ class XO_Event_Calendar_Admin {
 	public function add_menu() {
 		$post_type_name = XO_Event_Calendar::get_post_type();
 
+		$holiday_cap = apply_filters( 'xo_event_calendar_holiday_setting_capability', XO_EVENT_CALENDAR_HOLIDAY_SETTING_CAPABILITY );
+
 		$holiday_settings_page = add_submenu_page(
 			"edit.php?post_type={$post_type_name}",
 			'Holiday Settings',
 			__( 'Holiday Settings', 'xo-event-calendar' ),
-			XO_EVENT_CALENDAR_HOLIDAY_SETTING_CAPABILITY,
+			$holiday_cap,
 			'xo-event-holiday-settings',
 			array( $this, 'holiday_settings_page' )
 		);

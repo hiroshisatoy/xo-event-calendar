@@ -265,6 +265,163 @@ class XO_Event_Calendar {
 	}
 
 	/**
+	 * Sanitize a PHP date format string for gmdate() / date_i18n().
+	 *
+	 * @param mixed $format Raw format.
+	 * @return string Safe format or empty string.
+	 */
+	private function sanitize_title_format_for_date( $format ) {
+		if ( ! is_string( $format ) ) {
+			return '';
+		}
+		$format = preg_replace( '/[^a-zA-Z0-9\\\\\-_:\/.,\s]/', '', $format );
+		$format = substr( $format, 0, 120 );
+		return trim( $format );
+	}
+
+	/** Maximum months loaded in a single AJAX or multi-month render. */
+	private const XO_EVENT_CALENDAR_MAX_MONTHS = 24;
+
+	/** Maximum prev/next feed span (months). -1 means unlimited. */
+	private const XO_EVENT_CALENDAR_MAX_MONTH_FEED = 240;
+
+	/**
+	 * Clamp months count for public calendar requests.
+	 *
+	 * @param mixed $months Raw value.
+	 * @return int
+	 */
+	private function sanitize_calendar_months_count( $months ) {
+		$n = (int) $months;
+		if ( $n < 1 ) {
+			return 1;
+		}
+		if ( $n > self::XO_EVENT_CALENDAR_MAX_MONTHS ) {
+			return self::XO_EVENT_CALENDAR_MAX_MONTHS;
+		}
+		return $n;
+	}
+
+	/**
+	 * Sanitize prev/next month feed limits.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return int
+	 */
+	private function sanitize_calendar_month_feed( $value ) {
+		$v = (int) $value;
+		if ( -1 === $v ) {
+			return -1;
+		}
+		if ( $v < 0 ) {
+			return -1;
+		}
+		if ( $v > self::XO_EVENT_CALENDAR_MAX_MONTH_FEED ) {
+			return self::XO_EVENT_CALENDAR_MAX_MONTH_FEED;
+		}
+		return $v;
+	}
+
+	/**
+	 * Clamp calendar column count for CSS class safety.
+	 *
+	 * @param mixed $columns Raw value.
+	 * @return int
+	 */
+	private function sanitize_calendar_columns( $columns ) {
+		$n = (int) $columns;
+		if ( $n < 1 ) {
+			return 1;
+		}
+		if ( $n > 12 ) {
+			return 12;
+		}
+		return $n;
+	}
+
+	/**
+	 * Clamp start of week (0–6).
+	 *
+	 * @param mixed $value Raw value.
+	 * @return int
+	 */
+	private function sanitize_calendar_start_of_week( $value ) {
+		$n = (int) $value;
+		if ( $n < 0 ) {
+			return 0;
+		}
+		if ( $n > 6 ) {
+			return 6;
+		}
+		return $n;
+	}
+
+	/**
+	 * Encode calendar navigation payload for a data attribute.
+	 *
+	 * @param array $payload Navigation payload.
+	 * @return string HTML attribute fragment (leading space + data-xo-cal-nav="...").
+	 */
+	private function event_calendar_nav_attribute( array $payload ) {
+		$flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE;
+		return ' data-xo-cal-nav="' . esc_attr( wp_json_encode( $payload, $flags ) ) . '"';
+	}
+
+	/**
+	 * Build JSON payload for event calendar month navigation.
+	 *
+	 * @param string $target_month Target Y-n month.
+	 * @param array  $args         Calendar arguments.
+	 * @param string $base_month   Base month string.
+	 * @return array
+	 */
+	private function build_event_calendar_nav_payload( $target_month, $args, $base_month ) {
+		return array(
+			'kind'             => 'event',
+			'month'            => (string) $target_month,
+			'show_event'       => ! empty( $args['show_event'] ) ? 1 : 0,
+			'categories'       => (string) $args['categories_string'],
+			'holidays'         => (string) $args['holidays_string'],
+			'prev_month_feed'  => (int) $args['prev_month_feed'],
+			'next_month_feed'  => (int) $args['next_month_feed'],
+			'start_of_week'    => (int) $args['start_of_week'],
+			'months'           => (int) $args['months'],
+			'navigation'       => ! empty( $args['navigation'] ) ? 1 : 0,
+			'title_format'     => $this->sanitize_title_format_for_date( isset( $args['title_format'] ) ? $args['title_format'] : '' ),
+			'is_locale'        => ( ! isset( $args['locale'] ) || $args['locale'] ) ? 1 : 0,
+			'columns'          => isset( $args['columns'] ) ? (int) $args['columns'] : 1,
+			'base_month'       => (string) $base_month,
+		);
+	}
+
+	/**
+	 * Build JSON payload for simple calendar month navigation.
+	 *
+	 * @param string $target_month Target Y-n month.
+	 * @param array  $args         Calendar arguments.
+	 * @param string $base_month   Base month string.
+	 * @return array
+	 */
+	private function build_simple_calendar_nav_payload( $target_month, $args, $base_month ) {
+		return array(
+			'kind'             => 'simple',
+			'month'            => (string) $target_month,
+			'holidays'         => (string) $args['holidays_string'],
+			'prev_month_feed'  => (int) $args['prev_month_feed'],
+			'next_month_feed'  => (int) $args['next_month_feed'],
+			'start_of_week'    => (int) $args['start_of_week'],
+			'months'           => (int) $args['months'],
+			'navigation'       => ! empty( $args['navigation'] ) ? 1 : 0,
+			'title_format'     => $this->sanitize_title_format_for_date( isset( $args['title_format'] ) ? $args['title_format'] : '' ),
+			'is_locale'        => ( ! isset( $args['locale'] ) || $args['locale'] ) ? 1 : 0,
+			'columns'          => isset( $args['columns'] ) ? (int) $args['columns'] : 1,
+			'caption_color'    => isset( $args['caption_color'] ) ? (string) $args['caption_color'] : '',
+			'caption_bgcolor'  => isset( $args['caption_bgcolor'] ) ? (string) $args['caption_bgcolor'] : '',
+			'base_month'       => (string) $base_month,
+		);
+	}
+
+	/**
 	 * Retrieve the date in localized format, based on timestamp.
 	 *
 	 * @since 1.7.1
@@ -337,24 +494,22 @@ class XO_Event_Calendar {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- we do not need to verify the nonce for this public request for publicly accessible data.
 		$id            = isset( $_REQUEST['id'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['id'] ) ) : '';
 		$month         = isset( $_REQUEST['month'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['month'] ) ) : '';
-		$show_event    = isset( $_REQUEST['event'] ) ? (bool) $_REQUEST['event'] : false;
+		$show_event    = isset( $_REQUEST['event'] ) ? filter_var( wp_unslash( $_REQUEST['event'] ), FILTER_VALIDATE_BOOLEAN ) : false;
 		$categories    = isset( $_REQUEST['categories'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['categories'] ) ) : '';
 		$holidays      = isset( $_REQUEST['holidays'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['holidays'] ) ) : '';
-		$prev          = isset( $_REQUEST['prev'] ) ? intval( $_REQUEST['prev'] ) : -1;
-		$next          = isset( $_REQUEST['next'] ) ? intval( $_REQUEST['next'] ) : -1;
-		$start_of_week = isset( $_REQUEST['start_of_week'] ) ? intval( $_REQUEST['start_of_week'] ) : 0;
-		$months        = isset( $_REQUEST['months'] ) ? intval( $_REQUEST['months'] ) : 1;
-		$navigation    = isset( $_REQUEST['navigation'] ) ? (bool) $_REQUEST['navigation'] : false;
-		$mhc           = isset( $_REQUEST['mhc'] ) ? (bool) $_REQUEST['mhc'] : false;
+		$prev          = $this->sanitize_calendar_month_feed( isset( $_REQUEST['prev'] ) ? $_REQUEST['prev'] : -1 );
+		$next          = $this->sanitize_calendar_month_feed( isset( $_REQUEST['next'] ) ? $_REQUEST['next'] : -1 );
+		$start_of_week = $this->sanitize_calendar_start_of_week( isset( $_REQUEST['start_of_week'] ) ? $_REQUEST['start_of_week'] : 0 );
+		$months        = $this->sanitize_calendar_months_count( isset( $_REQUEST['months'] ) ? $_REQUEST['months'] : 1 );
+		$navigation    = isset( $_REQUEST['navigation'] ) ? filter_var( wp_unslash( $_REQUEST['navigation'] ), FILTER_VALIDATE_BOOLEAN ) : false;
 		$base_month    = isset( $_REQUEST['base_month'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['base_month'] ) ) : '';
-		$title_format  = isset( $_REQUEST['title_format'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['title_format'] ) ) : '';
-		$locale        = isset( $_REQUEST['is_locale'] ) ? (bool) $_REQUEST['is_locale'] : true;
-		$columns       = isset( $_REQUEST['columns'] ) ? intval( $_REQUEST['columns'] ) : 1;
+		$title_format  = $this->sanitize_title_format_for_date( isset( $_REQUEST['title_format'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['title_format'] ) ) : '' );
+		$locale        = isset( $_REQUEST['is_locale'] ) ? filter_var( wp_unslash( $_REQUEST['is_locale'] ), FILTER_VALIDATE_BOOLEAN ) : true;
+		$columns       = $this->sanitize_calendar_columns( isset( $_REQUEST['columns'] ) ? $_REQUEST['columns'] : 1 );
 		// phpcs:enable
 
 		$allowed_html = wp_kses_allowed_html( 'post' );
-
-		$allowed_html['button']['onclick'] = true;
+		$allowed_html['button']['data-xo-cal-nav'] = true;
 
 		preg_match( '/^([0-9]{4})-([0-9]{1,2})/', $month, $m1 );
 		if ( 3 === count( $m1 ) ) {
@@ -416,22 +571,21 @@ class XO_Event_Calendar {
 		$id              = isset( $_REQUEST['id'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['id'] ) ) : '';
 		$month           = isset( $_REQUEST['month'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['month'] ) ) : '';
 		$holidays        = isset( $_REQUEST['holidays'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['holidays'] ) ) : '';
-		$prev            = isset( $_REQUEST['prev'] ) ? intval( $_REQUEST['prev'] ) : -1;
-		$next            = isset( $_REQUEST['next'] ) ? intval( $_REQUEST['next'] ) : -1;
-		$start_of_week   = isset( $_REQUEST['start_of_week'] ) ? intval( $_REQUEST['start_of_week'] ) : 0;
-		$months          = isset( $_REQUEST['months'] ) ? intval( $_REQUEST['months'] ) : 1;
-		$navigation      = isset( $_REQUEST['navigation'] ) ? (bool) $_REQUEST['navigation'] : false;
+		$prev            = $this->sanitize_calendar_month_feed( isset( $_REQUEST['prev'] ) ? $_REQUEST['prev'] : -1 );
+		$next            = $this->sanitize_calendar_month_feed( isset( $_REQUEST['next'] ) ? $_REQUEST['next'] : -1 );
+		$start_of_week   = $this->sanitize_calendar_start_of_week( isset( $_REQUEST['start_of_week'] ) ? $_REQUEST['start_of_week'] : 0 );
+		$months          = $this->sanitize_calendar_months_count( isset( $_REQUEST['months'] ) ? $_REQUEST['months'] : 1 );
+		$navigation      = isset( $_REQUEST['navigation'] ) ? filter_var( wp_unslash( $_REQUEST['navigation'] ), FILTER_VALIDATE_BOOLEAN ) : false;
 		$base_month      = isset( $_REQUEST['base_month'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['base_month'] ) ) : '';
-		$title_format    = isset( $_REQUEST['title_format'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['title_format'] ) ) : '';
-		$locale          = isset( $_REQUEST['is_locale'] ) ? (bool) $_REQUEST['is_locale'] : true;
+		$title_format    = $this->sanitize_title_format_for_date( isset( $_REQUEST['title_format'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['title_format'] ) ) : '' );
+		$locale          = isset( $_REQUEST['is_locale'] ) ? filter_var( wp_unslash( $_REQUEST['is_locale'] ), FILTER_VALIDATE_BOOLEAN ) : true;
 		$caption_color   = isset( $_REQUEST['caption_color'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['caption_color'] ) ) : '';
 		$caption_bgcolor = isset( $_REQUEST['caption_bgcolor'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['caption_bgcolor'] ) ) : '';
-		$columns         = isset( $_REQUEST['columns'] ) ? intval( $_REQUEST['columns'] ) : 1;
+		$columns         = $this->sanitize_calendar_columns( isset( $_REQUEST['columns'] ) ? $_REQUEST['columns'] : 1 );
 		// phpcs:enable
 
 		$allowed_html = wp_kses_allowed_html( 'post' );
-
-		$allowed_html['button']['onclick'] = true;
+		$allowed_html['button']['data-xo-cal-nav'] = true;
 
 		preg_match( '/^([0-9]{4})-([0-9]{1,2})/', $month, $m1 );
 		if ( count( $m1 ) === 3 ) {
@@ -772,7 +926,8 @@ class XO_Event_Calendar {
 					$holiday_slugs = $this->get_holiday_slug( $holidays, $holiday_settings, $date );
 					if ( count( $holiday_slugs ) ) {
 						$holiday_slug = end( $holiday_slugs );
-						$style        = 'style="background-color: ' . $holiday_settings[ $holiday_slug ]['color'] . ';"';
+						$holiday_hex  = sanitize_hex_color( $holiday_settings[ $holiday_slug ]['color'] );
+						$style        = 'style="background-color: ' . esc_attr( $holiday_hex ? $holiday_hex : '#cccccc' ) . ';"';
 						$class       .= implode(
 							' ',
 							array_map(
@@ -874,12 +1029,14 @@ class XO_Event_Calendar {
 								$event = $events[ $days_week[ $day_index ][ $line_index ] ];
 
 								$short_title    = ( $event['short_title'] ) ? $event['short_title'] : $event['title'];
+								$short_title    = wp_strip_all_tags( (string) $short_title );
 								$hsv            = XO_Color::get_hsv( XO_Color::get_rgb( $event['bg_color'] ) );
 								$font_color     = $hsv['v'] > 0.8 ? '#333' : '#eee';
-								$style          = "color:{$font_color}; background-color:{$event['bg_color']};";
-								$category_class = empty( $event['category'] ) ? 'category-none' : 'category-' . $event['category'];
+								$bg_safe        = $this->esc_color( $event['bg_color'] );
+								$style          = 'color:' . $font_color . '; background-color:' . $bg_safe . ';';
+								$category_class = empty( $event['category'] ) ? 'category-none' : sanitize_html_class( 'category-' . $event['category'] );
 
-								$event_html = '<span class="month-event-title ' . esc_attr( $category_class ) . '" style="' . esc_attr( $style ) . '">' . $short_title . '</span>';
+								$event_html = '<span class="month-event-title ' . esc_attr( $category_class ) . '" style="' . esc_attr( $style ) . '">' . esc_html( $short_title ) . '</span>';
 								if ( ! isset( $this->options['disable_event_link'] ) || ! $this->options['disable_event_link'] ) {
 									$event_html = '<a href="' . esc_url( $event['permalink'] ) . '" title="' . esc_attr( $event['title'] ) . '">' . $event_html . '</a>';
 								}
@@ -896,6 +1053,8 @@ class XO_Event_Calendar {
 								 * @param array $args An array of arguments used to retrieve monthly calendar.
 								 */
 								$event_html = apply_filters( 'xo_event_calendar_event_title', $event_html, $event, $this->options, $args );
+
+								$event_html = wp_kses_post( $event_html );
 
 								$month_html .= "<td colspan=\"{$colspan}\">{$event_html}</td>";
 
@@ -931,15 +1090,21 @@ class XO_Event_Calendar {
 			$next_text = '<span class="dashicons dashicons-arrow-right-alt2"></span>';
 		}
 
-		if ( ! isset( $args['title_format'] ) || empty( $args['title_format'] ) ) {
+		if ( ! isset( $args['title_format'] ) || '' === trim( (string) $args['title_format'] ) ) {
 			/* translators: 1: Month, 2: Year. */
 			$calendar_caption = sprintf( _x( '%1$s %2$s', 'calendar caption', 'xo-event-calendar' ), $wp_locale->get_month( $args['month'] ), $args['year'] );
 		} else {
-			$t = strtotime( sprintf( '%04d-%02d', $args['year'], $args['month'] ) );
-			if ( ! isset( $args['locale'] ) || $args['locale'] ) {
-				$calendar_caption = date_i18n( $args['title_format'], $t );
+			$title_format_safe = $this->sanitize_title_format_for_date( $args['title_format'] );
+			if ( '' === $title_format_safe ) {
+				/* translators: 1: Month, 2: Year. */
+				$calendar_caption = sprintf( _x( '%1$s %2$s', 'calendar caption', 'xo-event-calendar' ), $wp_locale->get_month( $args['month'] ), $args['year'] );
 			} else {
-				$calendar_caption = gmdate( $args['title_format'], $t );
+				$t = strtotime( sprintf( '%04d-%02d', $args['year'], $args['month'] ) );
+				if ( ! isset( $args['locale'] ) || $args['locale'] ) {
+					$calendar_caption = date_i18n( $title_format_safe, $t );
+				} else {
+					$calendar_caption = gmdate( $title_format_safe, $t );
+				}
 			}
 		}
 
@@ -960,25 +1125,8 @@ class XO_Event_Calendar {
 		$html .= '<div class="month-header">';
 		if ( $args['navigation'] ) {
 			if ( -1 === $args['prev_month_feed'] || $m > strtotime( "-{$args['prev_month_feed']} month", $base_month_time ) ) {
-				/* translators: 1: Prev month, 2: Show event, 3: Categories string, 4: holidays string, 5: Prev month feed, 6: Next month feed, 7: Start of week, 8: Month count, 9: Navigation, 10: Title format, 11: Locale, 12: Columns, 13: Base month. */
-				$onclick = sprintf(
-					"this.disabled = true; xo_event_calendar_month(this,'%s',%d,'%s','%s',%d,%d,%d,%d,%d,'%s',%d,%d,'%s'); return false;",
-					esc_js( $prev_month ),
-					$args['show_event'],
-					esc_js( $args['categories_string'] ),
-					esc_js( $args['holidays_string'] ),
-					$args['prev_month_feed'],
-					$args['next_month_feed'],
-					$args['start_of_week'],
-					$args['months'],
-					$args['navigation'],
-					esc_js( isset( $args['title_format'] ) ? $args['title_format'] : '' ),
-					isset( $args['locale'] ) ? $args['locale'] : 1,
-					isset( $args['columns'] ) ? $args['columns'] : 1,
-					esc_js( $base_month )
-				);
-
-				$html .= '<button type="button" class="month-prev" onclick="' . $onclick . '">' . $prev_text . '</button>';
+				$nav_prev = $this->event_calendar_nav_attribute( $this->build_event_calendar_nav_payload( $prev_month, $args, $base_month ) );
+				$html    .= '<button type="button" class="month-prev"' . $nav_prev . '>' . $prev_text . '</button>';
 			} else {
 				$html .= '<button type="button" class="month-prev" disabled="disabled">' . $prev_text . '</button>';
 			}
@@ -986,25 +1134,8 @@ class XO_Event_Calendar {
 		$html .= '<span class="calendar-caption">' . esc_html( $calendar_caption ) . '</span>';
 		if ( $args['navigation'] ) {
 			if ( -1 === $args['next_month_feed'] || $m < strtotime( "+{$args['next_month_feed']} month", $base_month_time ) ) {
-				/* translators: 1: Prev month, 2: Show event, 3: Categories string, 4: holidays string, 5: Prev month feed, 6: Next month feed, 7: Start of week, 8: Month count, 9: Navigation, 10: Title format, 11: Locale, 12: Columns, 13: Base month. */
-				$onclick = sprintf(
-					"this.disabled = true; xo_event_calendar_month(this,'%s',%d,'%s','%s',%d,%d,%d,%d,%d,'%s',%d,%d,'%s'); return false;",
-					esc_js( $next_month ),
-					$args['show_event'],
-					esc_js( $args['categories_string'] ),
-					esc_js( $args['holidays_string'] ),
-					$args['prev_month_feed'],
-					$args['next_month_feed'],
-					$args['start_of_week'],
-					$args['months'],
-					$args['navigation'],
-					esc_js( isset( $args['title_format'] ) ? $args['title_format'] : '' ),
-					isset( $args['locale'] ) ? $args['locale'] : 1,
-					isset( $args['columns'] ) ? $args['columns'] : 1,
-					esc_js( $base_month )
-				);
-
-				$html .= '<button type="button" class="month-next" onclick="' . $onclick . '">' . $next_text . '</button>';
+				$nav_next = $this->event_calendar_nav_attribute( $this->build_event_calendar_nav_payload( $next_month, $args, $base_month ) );
+				$html    .= '<button type="button" class="month-next"' . $nav_next . '>' . $next_text . '</button>';
 			} else {
 				$html .= '<button type="button" class="month-next" disabled="disabled" >' . $next_text . '</button>';
 			}
@@ -1077,6 +1208,15 @@ class XO_Event_Calendar {
 		 */
 		$args = apply_filters( 'xo_event_calendar_args', $args );
 
+		$args['months']           = $this->sanitize_calendar_months_count( isset( $args['months'] ) ? $args['months'] : 1 );
+		$args['prev_month_feed']  = $this->sanitize_calendar_month_feed( isset( $args['prev_month_feed'] ) ? $args['prev_month_feed'] : -1 );
+		$args['next_month_feed']  = $this->sanitize_calendar_month_feed( isset( $args['next_month_feed'] ) ? $args['next_month_feed'] : -1 );
+		$args['start_of_week']    = $this->sanitize_calendar_start_of_week( isset( $args['start_of_week'] ) ? $args['start_of_week'] : 0 );
+		$args['columns']          = $this->sanitize_calendar_columns( isset( $args['columns'] ) ? $args['columns'] : 1 );
+		if ( isset( $args['title_format'] ) ) {
+			$args['title_format'] = $this->sanitize_title_format_for_date( $args['title_format'] );
+		}
+
 		if ( $args['month'] < 1 ) {
 			$args['month'] = 1;
 		} elseif ( $args['month'] > 12 ) {
@@ -1093,7 +1233,7 @@ class XO_Event_Calendar {
 
 		$class = 'calendars xo-months';
 		if ( isset( $args['columns'] ) && 1 < $args['columns'] ) {
-			$class .= " columns-{$args['columns']}";
+			$class .= ' columns-' . (int) $args['columns'];
 		}
 		$retour .= '<div class="' . esc_attr( $class ) . '" >';
 
@@ -1121,7 +1261,9 @@ class XO_Event_Calendar {
 			$holidays = explode( ',', (string) $args['holidays_string'] );
 			foreach ( $holidays as $holiday ) {
 				if ( array_key_exists( $holiday, $holiday_settings ) ) {
-					$html .= "<p class=\"holiday-title\"><span style=\"background-color: {$holiday_settings[$holiday]['color']};\"></span>{$holiday_settings[$holiday]['title']}</p>";
+					$holiday_hex = sanitize_hex_color( $holiday_settings[ $holiday ]['color'] );
+					$holiday_hex = $holiday_hex ? $holiday_hex : '#cccccc';
+					$html       .= '<p class="holiday-title"><span style="' . esc_attr( 'background-color: ' . $holiday_hex . ';' ) . '"></span>' . esc_html( $holiday_settings[ $holiday ]['title'] ) . '</p>';
 				}
 			}
 		}
@@ -1549,15 +1691,21 @@ class XO_Event_Calendar {
 		$html  = '<div class="calendar">';
 		$html .= '<table class="month">';
 
-		if ( ! isset( $args['title_format'] ) || empty( $args['title_format'] ) ) {
+		if ( ! isset( $args['title_format'] ) || '' === trim( (string) $args['title_format'] ) ) {
 			/* translators: 1: Month, 2: Year. */
 			$calendar_caption = sprintf( _x( '%1$s %2$s', 'calendar caption', 'xo-event-calendar' ), $wp_locale->get_month( $args['month'] ), $args['year'] );
 		} else {
-			$t = strtotime( sprintf( '%04d-%02d', $args['year'], $args['month'] ) );
-			if ( ! isset( $args['locale'] ) || $args['locale'] ) {
-				$calendar_caption = date_i18n( $args['title_format'], $t );
+			$title_format_safe = $this->sanitize_title_format_for_date( $args['title_format'] );
+			if ( '' === $title_format_safe ) {
+				/* translators: 1: Month, 2: Year. */
+				$calendar_caption = sprintf( _x( '%1$s %2$s', 'calendar caption', 'xo-event-calendar' ), $wp_locale->get_month( $args['month'] ), $args['year'] );
 			} else {
-				$calendar_caption = gmdate( $args['title_format'], $t );
+				$t = strtotime( sprintf( '%04d-%02d', $args['year'], $args['month'] ) );
+				if ( ! isset( $args['locale'] ) || $args['locale'] ) {
+					$calendar_caption = date_i18n( $title_format_safe, $t );
+				} else {
+					$calendar_caption = gmdate( $title_format_safe, $t );
+				}
 			}
 		}
 
@@ -1580,7 +1728,7 @@ class XO_Event_Calendar {
 			$style_color .= 'background-color:' . $this->esc_color( $args['caption_bgcolor'] ) . ';';
 		}
 
-		$html .= '<caption style="' . $style_color . '">';
+		$html .= '<caption style="' . esc_attr( $style_color ) . '">';
 		$html .= '<div class="month-header">';
 		if ( $args['navigation'] ) {
 			if ( ! isset( $args['base_year'] ) ) {
@@ -1599,25 +1747,8 @@ class XO_Event_Calendar {
 			$next_month = gmdate( 'Y-n', strtotime( sprintf( '%d month', 2 - $month_index ), $m ) );
 
 			if ( -1 === $args['prev_month_feed'] || $m > strtotime( "-{$args['prev_month_feed']} month", $base_month_time ) ) {
-				/* translators: 1: Prev month, 2: holidays string, 3: Prev month feed, 4: Next month feed, 5: Start of week, 6: Month count, 7: Navigation, 8: Title format, 9: Locale, 10: Columns, 11: Base month. */
-				$onclick = sprintf(
-					"this.disabled = true; xo_simple_calendar_month(this,'%s','%s',%d,%d,%d,%d,%d,'%s',%d,%d,'%s','%s','%s'); return false;",
-					esc_js( $prev_month ),
-					esc_js( $args['holidays_string'] ),
-					$args['prev_month_feed'],
-					$args['next_month_feed'],
-					$args['start_of_week'],
-					$args['months'],
-					$args['navigation'],
-					esc_js( isset( $args['title_format'] ) ? $args['title_format'] : '' ),
-					isset( $args['locale'] ) ? $args['locale'] : 1,
-					isset( $args['columns'] ) ? $args['columns'] : 1,
-					esc_js( isset( $args['caption_color'] ) ? $args['caption_color'] : '' ),
-					esc_js( isset( $args['caption_bgcolor'] ) ? $args['caption_bgcolor'] : '' ),
-					esc_js( $base_month )
-				);
-
-				$html .= '<button type="button" class="month-prev" onclick="' . $onclick . '">';
+				$nav_prev = $this->event_calendar_nav_attribute( $this->build_simple_calendar_nav_payload( $prev_month, $args, $base_month ) );
+				$html    .= '<button type="button" class="month-prev"' . $nav_prev . '>';
 			} else {
 				$html .= '<button type="button" class="month-prev" disabled="disabled">';
 			}
@@ -1626,25 +1757,8 @@ class XO_Event_Calendar {
 			$html .= '<span class="month-title">' . esc_html( $calendar_caption ) . '</span>';
 
 			if ( -1 === $args['next_month_feed'] || $m < strtotime( "+{$args['next_month_feed']} month", $base_month_time ) ) {
-				/* translators: 1: Prev month, 2: holidays string, 3: Prev month feed, 4: Next month feed, 5: Start of week, 6: Month count, 7: Navigation, 8: Title format, 9: Locale, 10: Columns, 11: Base month. */
-				$onclick = sprintf(
-					"this.disabled = true; xo_simple_calendar_month(this,'%s','%s',%d,%d,%d,%d,%d,'%s',%d,%d,'%s','%s','%s'); return false;",
-					esc_js( $next_month ),
-					esc_js( $args['holidays_string'] ),
-					$args['prev_month_feed'],
-					$args['next_month_feed'],
-					$args['start_of_week'],
-					$args['months'],
-					$args['navigation'],
-					esc_js( isset( $args['title_format'] ) ? $args['title_format'] : '' ),
-					isset( $args['locale'] ) ? $args['locale'] : 1,
-					isset( $args['columns'] ) ? $args['columns'] : 1,
-					esc_js( isset( $args['caption_color'] ) ? $args['caption_color'] : '' ),
-					esc_js( isset( $args['caption_bgcolor'] ) ? $args['caption_bgcolor'] : '' ),
-					esc_js( $base_month )
-				);
-
-				$html .= '<button type="button" class="month-next" onclick="' . $onclick . '">';
+				$nav_next = $this->event_calendar_nav_attribute( $this->build_simple_calendar_nav_payload( $next_month, $args, $base_month ) );
+				$html    .= '<button type="button" class="month-next"' . $nav_next . '>';
 			} else {
 				$html .= '<button type="button" class="month-next" disabled="disabled">';
 			}
@@ -1703,7 +1817,8 @@ class XO_Event_Calendar {
 					$holiday_slugs = $this->get_holiday_slug( $holidays, $holiday_settings, $date );
 					if ( count( $holiday_slugs ) ) {
 						$holiday_slug  = end( $holiday_slugs );
-						$style         = 'background-color: ' . $holiday_settings[ $holiday_slug ]['color'] . ';';
+						$holiday_hex   = sanitize_hex_color( $holiday_settings[ $holiday_slug ]['color'] );
+						$style         = 'background-color: ' . ( $holiday_hex ? $holiday_hex : '#cccccc' ) . ';';
 						$holiday_class = implode(
 							' ',
 							array_map(
@@ -1744,10 +1859,19 @@ class XO_Event_Calendar {
 	 * @return string HTML
 	 */
 	public function get_simple_calendar( $args ) {
+		$args['months']           = $this->sanitize_calendar_months_count( isset( $args['months'] ) ? $args['months'] : 1 );
+		$args['prev_month_feed']  = $this->sanitize_calendar_month_feed( isset( $args['prev_month_feed'] ) ? $args['prev_month_feed'] : -1 );
+		$args['next_month_feed']  = $this->sanitize_calendar_month_feed( isset( $args['next_month_feed'] ) ? $args['next_month_feed'] : -1 );
+		$args['start_of_week']    = $this->sanitize_calendar_start_of_week( isset( $args['start_of_week'] ) ? $args['start_of_week'] : 0 );
+		$args['columns']          = $this->sanitize_calendar_columns( isset( $args['columns'] ) ? $args['columns'] : 1 );
+		if ( isset( $args['title_format'] ) ) {
+			$args['title_format'] = $this->sanitize_title_format_for_date( $args['title_format'] );
+		}
+
 		$class = 'calendars';
 
 		if ( isset( $args['columns'] ) && 1 < $args['columns'] ) {
-			$class .= " columns-{$args['columns']}";
+			$class .= ' columns-' . (int) $args['columns'];
 		}
 
 		$html = '<div class="' . esc_attr( $class ) . '">';
@@ -1776,9 +1900,11 @@ class XO_Event_Calendar {
 			$holidays = explode( ',', $args['holidays_string'] );
 			foreach ( $holidays as $holiday ) {
 				if ( array_key_exists( $holiday, $holiday_settings ) ) {
-					$html .= '<li class="holiday-title">';
-					$html .= '<span class="mark" style="background-color:' . esc_attr( $holiday_settings[ $holiday ]['color'] ) . '"></span> ';
-					$html .= '<span class="title">' . esc_html( $holiday_settings[ $holiday ]['title'] ) . '</span>';
+					$mark_hex = sanitize_hex_color( $holiday_settings[ $holiday ]['color'] );
+					$mark_hex = $mark_hex ? $mark_hex : '#cccccc';
+					$html    .= '<li class="holiday-title">';
+					$html    .= '<span class="mark" style="' . esc_attr( 'background-color:' . $mark_hex . ';' ) . '"></span> ';
+					$html    .= '<span class="title">' . esc_html( $holiday_settings[ $holiday ]['title'] ) . '</span>';
 					$html .= '</li>';
 				}
 			}

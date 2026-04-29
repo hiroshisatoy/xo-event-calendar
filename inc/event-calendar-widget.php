@@ -57,9 +57,8 @@ class XO_Widget_Event_Calendar extends WP_Widget {
 		$next          = intval( $instance['next'] );
 		$start_of_week = isset( $instance['start_of_week'] ) ? intval( $instance['start_of_week'] ) : 0;
 		$months        = isset( $instance['months'] ) ? intval( $instance['months'] ) : 1;
-		$allowed_html  = wp_kses_allowed_html( 'post' );
-
-		$allowed_html['button']['onclick'] = true;
+		$allowed_html = wp_kses_allowed_html( 'post' );
+		$allowed_html['button']['data-xo-cal-nav'] = true;
 
 		echo wp_kses(
 			$xo_event_calendar->get_event_calendar(

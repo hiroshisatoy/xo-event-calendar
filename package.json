@@ -1,6 +1,6 @@
 {
 	"name": "xo-event-calendar",
-	"version": "3.3.1",
+	"version": "3.3.2",
 	"description": "XO Event Calendar is a simple event calendar plugin. (Forked and maintained by sato-jp)",
 	"author": "sato-jp",
 	"license": "GPL-2.0-or-later",
