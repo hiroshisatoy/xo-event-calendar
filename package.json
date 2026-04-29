@@ -21,7 +21,10 @@
 		"po2json": "po2json -f jed -d xo-event-calendar languages/xo-event-calendar-ja.po languages/xo-event-calendar-ja-xo-event-calendar-event-calendar-editor-script.json"
 	},
 	"devDependencies": {
-		"@wordpress/scripts": "^23.6.0",
+		"@wordpress/scripts": "^32.1.0",
 		"po2json": "^1.0.0-beta-3"
+	},
+	"overrides": {
+		"ajv": "^8.17.1"
 	}
 }
